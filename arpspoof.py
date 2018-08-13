@@ -146,7 +146,7 @@ class Sniff(ARP):
         poison_thread.join()
         relay_thread.join()
 
-        
+
     def poison(self, interval=3):
         ''' arp table poisoning '''
         while True:
@@ -157,13 +157,13 @@ class Sniff(ARP):
                 target_ip  = self.victim_ip
                 )
             time.sleep( interval )
-
+    
     def restorePacketHeader(self, packet):
         ''' restore ethernet dst mac header '''
         restored_packet  = mac2str( self.router_mac )
         restored_packet += packet[6:]
         return restored_packet
-        
+
 
     def relay(self):
         recv_s = socket( AF_PACKET, SOCK_RAW, htons( ETHERTYPE_IP ) )
