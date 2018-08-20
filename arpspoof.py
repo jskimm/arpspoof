@@ -139,8 +139,7 @@ class Sniff(ARP):
         self.victim_mac = getMacByIP( arp.iface, self.victim_ip )
         self.router_ip  = getGWIP()
         self.router_mac = getMacByIP( arp.iface, getGWIP() )
-        # print 'victim %s %s, router %s %s' % (self.victim_ip, self.victim_mac, self.router_ip, self.router_mac)
-        # print getGWIP()
+
 
     def run(self):
         poison_thread = threading.Thread( target=self.poison, args=() )
@@ -181,7 +180,6 @@ class Sniff(ARP):
             try:
 
                 if header['ether']['dst'] == getMyMac( arp.iface ) and header['ether']['src']==self.victim_mac:
-                # if header['ether']['dst'] == getMyMac( arp.iface ) and header['ether']['src']==self.victim_mac or header['ether']['src']=='68-EC-C5-0B-EC-8F':
                     print '\nPACKET RELAYED'
                     packet = self.restorePacketHeader( packet )  
                     send_s.send( packet )
@@ -194,7 +192,6 @@ class Sniff(ARP):
             print "dst", header['ether']['dst'],
             print '-> src', header['ether']['src']
             print 'type 0x%x' % header['ether']['type']
-            # print 'packet', `packet`[:50]
             print 'protocol type', u8( packet[23] )
 
 
